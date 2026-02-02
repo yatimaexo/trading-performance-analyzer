@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trading Performance Analyzer</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #0a0e27; color: #e0e6ed; padding: 20px; line-height: 1.6; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        h1 { color: #4ecdc4; margin-bottom: 10px; font-size: 2.2em; }
+        .subtitle { color: #95aac9; margin-bottom: 30px; font-size: 0.95em; }
+        .card { background: #1a1f3a; border-radius: 12px; padding: 25px; margin-bottom: 25px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
+        .card h2 { color: #4ecdc4; margin-bottom: 15px; font-size: 1.5em; border-bottom: 2px solid #2a3f5f; padding-bottom: 10px; }
+        .input-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; color: #95aac9; font-weight: 500; }
+        input, textarea { width: 100%; padding: 10px; background: #0f1729; border: 2px solid #2a3f5f; border-radius: 6px; color: #e0e6ed; font-size: 14px; transition: border-color 0.3s; }
+        input:focus, textarea:focus { outline: none; border-color: #4ecdc4; }
+        textarea { min-height: 150px; font-family: monospace; font-size: 13px; }
+        button { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; padding: 12px 28px; border-radius: 6px; cursor: pointer; font-size: 16px; font-weight: 600; transition: transform 0.2s; }
+        button:hover { transform: translateY(-2px); }
+        button:active { transform: translateY(0); }
+        .metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; margin-top: 20px; }
+        .metric { background: #0f1729; padding: 18px; border-radius: 8px; border-left: 4px solid #667eea; }
+        .metric-label { font-size: 0.85em; color: #95aac9; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+        .metric-value { font-size: 1.8em; font-weight: 700; color: #fff; }
+        .metric.positive .metric-value { color: #26de81; }
+        .metric.negative .metric-value { color: #fc5c65; }
+        .metric.neutral .metric-value { color: #fed330; }
+        .chart { height: 300px; background: #0f1729; border-radius: 8px; margin-top: 20px; display: flex; align-items: flex-end; justify-content: space-around; padding: 20px; }
+        .bar { flex: 1; background: linear-gradient(180deg, #667eea 0%, #764ba2 100%); margin: 0 3px; border-radius: 4px 4px 0 0; position: relative; transition: all 0.3s; }
+        .bar:hover { opacity: 0.8; }
+        .bar-label { position: absolute; bottom: -25px; left: 50%; transform: translateX(-50%); font-size: 11px; color: #95aac9; white-space: nowrap; }
+        .hidden { display: none; }
+        .warning { background: #fc5c65; color: white; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📊 Trading Performance Analyzer</h1>
+        <p class="subtitle">Analyze backtest results and identify performance patterns</p>
+        
+        <div class="card">
+            <h2>Input Data</h2>
+            <div class="input-group">
+                <label>Total Trades</label>
+                <input type="number" id="totalTrades" placeholder="e.g., 916" value="916">
+            </div>
+            <div class="input-group">
+                <label>Winning Trades</label>
+                <input type="number" id="winningTrades" placeholder="e.g., 788" value="788">
+            </div>
+            <div class="input-group">
+                <label>Average Win ($)</label>
+                <input type="number" step="0.01" id="avgWin" placeholder="e.g., 53.51" value="53.51">
+            </div>
+            <div class="input-group">
+                <label>Average Loss ($)</label>
+                <input type="number" step="0.01" id="avgLoss" placeholder="e.g., 151.36" value="151.36">
+            </div>
+            <div class="input-group">
+                <label>Net Profit ($)</label>
+                <input type="number" step="0.01" id="netProfit" placeholder="e.g., 22794.50" value="22794.50">
+            </div>
+            <div class="input-group">
+                <label>Max Drawdown ($)</label>
+                <input type="number" step="0.01" id="maxDD" placeholder="e.g., 719" value="719">
+            </div>
+            <button onclick="analyze()">🔬 Analyze Performance</button>
+        </div>
+        
+        <div id="results" class="hidden">
+            <div class="card">
+                <h2>Key Metrics</h2>
+                <div class="metrics" id="metricsContainer"></div>
+            </div>
+            
+            <div class="card">
+                <h2>Insights & Recommendations</h2>
+                <div id="insights"></div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+    function analyze() {
+        const totalTrades = parseFloat(document.getElementById('totalTrades').value) || 0;
+        const winningTrades = parseFloat(document.getElementById('winningTrades').value) || 0;
+        const avgWin = parseFloat(document.getElementById('avgWin').value) || 0;
+        const avgLoss = parseFloat(document.getElementById('avgLoss').value) || 0;
+        const netProfit = parseFloat(document.getElementById('netProfit').value) || 0;
+        const maxDD = parseFloat(document.getElementById('maxDD').value) || 0;
+        
+        const losingTrades = totalTrades - winningTrades;
+        const winRate = totalTrades > 0 ? (winningTrades / totalTrades * 100) : 0;
+        const winLossRatio = avgLoss > 0 ? (avgWin / avgLoss) : 0;
+        const expectedValue = totalTrades > 0 ? (netProfit / totalTrades) : 0;
+        const profitFactor = (avgLoss * losingTrades) > 0 ? ((avgWin * winningTrades) / (avgLoss * losingTrades)) : 0;
+        
+        let html = '';
+        html += `<div class="metric positive"><div class="metric-label">Win Rate</div><div class="metric-value">${winRate.toFixed(2)}%</div></div>`;
+        html += `<div class="metric ${winLossRatio >= 0.5 ? 'positive' : 'negative'}"><div class="metric-label">Win/Loss Ratio</div><div class="metric-value">${winLossRatio.toFixed(3)}</div></div>`;
+        html += `<div class="metric ${expectedValue > 0 ? 'positive' : 'negative'}"><div class="metric-label">Expected Value</div><div class="metric-value">$${expectedValue.toFixed(2)}</div></div>`;
+        html += `<div class="metric ${profitFactor >= 2 ? 'positive' : profitFactor >= 1.5 ? 'neutral' : 'negative'}"><div class="metric-label">Profit Factor</div><div class="metric-value">${profitFactor.toFixed(2)}</div></div>`;
+        html += `<div class="metric positive"><div class="metric-label">Net Profit</div><div class="metric-value">$${netProfit.toLocaleString()}</div></div>`;
+        html += `<div class="metric negative"><div class="metric-label">Max Drawdown</div><div class="metric-value">$${maxDD.toLocaleString()}</div></div>`;
+        
+        document.getElementById('metricsContainer').innerHTML = html;
+        
+        let insights = '';
+        if (winLossRatio < 0.5) {
+            insights += `<div class="warning">⚠️ <strong>Critical:</strong> Win/Loss ratio is ${winLossRatio.toFixed(3)} (avg loss is ${(avgLoss/avgWin).toFixed(1)}x bigger than avg win). One loser wipes out ${Math.floor(avgLoss/avgWin)} winners.</div>`;
+        }
+        
+        insights += '<div style="margin-top: 20px; line-height: 2;"><strong>Recommendations:</strong><ul style="margin-left: 20px; margin-top: 10px;">';
+        
+        if (winLossRatio < 0.5) {
+            insights += '<li>🎯 <strong>Priority 1:</strong> Reduce average loss size (tighter stops, faster exits on bad trades)</li>';
+            insights += '<li>📈 <strong>Priority 2:</strong> Increase average win size (let winners run, partial profit taking)</li>';
+        }
+        if (winRate > 80 && winLossRatio < 0.5) {
+            insights += '<li>💡 High win rate compensating for poor risk/reward - unsustainable long-term</li>';
+        }
+        if (profitFactor < 2) {
+            insights += '<li>⚡ Profit factor below 2.0 - strategy edge could be stronger</li>';
+        }
+        
+        insights += '</ul></div>';
+        
+        document.getElementById('insights').innerHTML = insights;
+        document.getElementById('results').classList.remove('hidden');
+    }
+    
+    if (document.getElementById('totalTrades').value) analyze();
+    </script>
+</body>
+                  </html>
